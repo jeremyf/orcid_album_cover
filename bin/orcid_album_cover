@@ -8,8 +8,110 @@ require 'capybara-webkit'
 require 'fileutils'
 
 module Orcid
-  class AlbumCover
+  class Work
     include Capybara::DSL
+    attr_reader :title
+    def initialize(document)
+      @document = document
+    end
+
+    def title
+      @title ||= begin
+        title_parts = []
+        title_parts << @document.css('work-title title').text
+        title_parts << @document.css('work-title subtitle').text
+        title_parts.join(': ')
+      end
+    end
+
+    def location
+      @location ||= resolve_doi || find_representative_url || ''
+    end
+
+    def location_not_found?
+      location.to_s.size == 0
+    end
+
+    def location_exists?
+      !location_not_found?
+    end
+
+    def doi
+      find_doi
+    end
+
+    def screenshot_exists?
+      @screenshot_exists
+    end
+
+    def save_screenshot(directory)
+      if location_exists?
+        uri = URI.parse(location)
+        begin
+          Capybara.current_driver = :webkit
+          Capybara.run_server = false
+          Capybara.app_host = "#{uri.scheme}://#{uri.host}"
+          visit(uri.path)
+          page.save_screenshot(File.join(directory, filename))
+          @screenshot_exists = true
+        rescue Capybara::Webkit::InvalidResponseError
+          @screenshot_exists = false
+          # Silently failing is good?
+        end
+      end
+    end
+
+    def filename(prefix = nil)
+      if prefix
+        "#{prefix}-#{location.hash}.png"
+      else
+        "#{location.hash}.png"
+      end
+    end
+
+    private
+    def resolve_doi
+      doi = find_doi
+      return nil if doi.nil?
+      begin
+        response = RestClient.get("http://dx.doi.org/#{doi}", accept: :html) { |resp, request, result| resp }
+        response.headers.fetch(:location)
+      rescue RestClient::Exception
+        nil
+      end
+    end
+
+    def find_doi
+      @dois ||= []
+      return @dois.first if @dois.first
+      @document.css('work-external-identifier').each do |node|
+        if node.css('work-external-identifier-type').text =~ /^doi$/i
+          doi = node.css('work-external-identifier-id').text
+          if !doi.to_s.empty?
+            if doi =~ /^https?\:/
+              uri = URI.parse(doi)
+              @dois << uri.path.sub(/^\//, '')
+            else
+              @dois << doi
+            end
+          end
+        end
+      end
+      return @dois.first
+    end
+
+    def find_representative_url
+      @representative_urls ||= []
+      return @representative_urls.first if @representative_urls.first
+      @document.css('url').each do |node|
+        text = node.text
+        @representative_urls << text if ! text.to_s.empty?
+      end
+      return @representative_urls.first
+    end
+  end
+
+  class AlbumCover
     attr_reader :orcid_profile_id, :host, :person_name
     def initialize(orcid_profile_id, options = {})
       @orcid_profile_id = orcid_profile_id
@@ -21,9 +123,8 @@ module Orcid
       FileUtils.rm_rf(directory)
       FileUtils.mkdir_p(directory)
       find_person_name
-      find_dois
-      guard_for_no_dois
-      find_locations_from_dois
+      find_works
+      guard_no_work_locations
       screenscrap_locations
       generate_cropped_files
       if @format.to_s == 'html'
@@ -48,16 +149,18 @@ module Orcid
       template << "<h2>#{person_name}</h2>"
       template << "<h3><a href='https://orcid.org/#{orcid_profile_id}'>#{orcid_profile_id}<h3>"
       template << %(<ul class="thumbnails">)
-      @locations.each_with_index do |(doi, location), index|
-        filename = File.join(directory, "cropped-#{location.hash}.png")
-        template << %(<li class="span4">)
-        template << %(<div class="thumbnail">)
-        template << %(<a href="http://dx.doi.org/#{doi}">)
-        template << %(<img data-src="holder.js/300x300" style="width: 300px height: 300px;" alt="#{doi}" src="file://#{filename}">)
-        template << %(<h3>#{doi}</h3>)
-        template << %(</a>)
-        template << %(</div>)
-        template << %(</li>)
+      @works.each_with_index do |work, index|
+        if work.screenshot_exists?
+          filename = File.join(directory, work.filename("cropped"))
+          template << %(<li class="span4">)
+          template << %(<div class="thumbnail">)
+          template << %(<a href="#{work.location}">)
+          template << %(<img data-src="holder.js/300x300" style="width: 300px height: 300px;" alt="#{work.title}" src="file://#{filename}">)
+          template << %(<h3>#{work.title}</h3>)
+          template << %(</a>)
+          template << %(</div>)
+          template << %(</li>)
+        end
       end
       template << "</ul>"
       template << "</body>"
@@ -100,58 +203,45 @@ module Orcid
       document = Nokogiri::XML(response)
       personal_details = document.css('personal-details')
       @person_name = ''
-      if credit_name = personal_details.css('credit-name')
-        @person_name = credit_name.text
+      credit_name = personal_details.css('credit-name').text
+      if ! credit_name.empty?
+        @person_name = credit_name
       else
-        if given_name = personal_details.css('given-names')
-          @person_name += " #{given_name.text}"
+        given_name = personal_details.css('given-names').text
+        if ! given_name.empty?
+          @person_name += " #{given_name}"
         end
-        if family_name = personal_details.css('family-name')
-          @person_name += " #{family_name.text}"
+        family_name = personal_details.css('family-name').text
+        if ! family_name.empty?
+          @person_name += " #{family_name}"
         end
         @person_name.strip
       end
     end
 
-    def find_dois
+    def find_works
       response = RestClient.get(profile_works_uri, accept: :xml)
       document = Nokogiri::XML(response)
-      @dois = []
-      document.css('work-external-identifier').each_with_object(@dois) do |node, dois|
-        if node.css('work-external-identifier-type').text =~ /^doi$/i
-          dois << node.css('work-external-identifier-id').text
-        end
-        dois
+      @works = []
+      document.css('orcid-works orcid-work').each do |work_node|
+        @works << Work.new(work_node)
       end
-      @dois.uniq!
-      @dois
     end
 
-    def guard_for_no_dois
-      if @dois.empty?
-        STDERR.puts "No public DOIs found for ORCID: #{orcid_profile_id}."
+    def guard_no_work_locations
+      if @works.empty?
+        STDERR.puts "No works found for ORCID: #{orcid_profile_id}."
+        exit(-1)
+      end
+      if @works.all? {|work| work.location_not_found? }
+        STDERR.puts "No DOIs nor URIs found for ORCID: #{orcid_profile_id}."
         exit(-1)
       end
     end
 
-    def find_locations_from_dois
-      @locations = []
-      @dois.each_with_object(@locations) do |doi, mem|
-        response = RestClient.get("http://dx.doi.org/#{doi}", accept: :html) { |resp, request, result| resp }
-        @locations << [doi, response.headers.fetch(:location)]
-      end
-      @locations
-    end
-
     def screenscrap_locations
-      Capybara.current_driver = :webkit
-      Capybara.run_server = false
-      @locations.each do |doi, location|
-        uri = URI.parse(location)
-        Capybara.app_host = "#{uri.scheme}://#{uri.host}"
-        visit(uri.path)
-        filename = "#{location.hash}.png"
-        page.save_screenshot(File.join(directory, filename))
+      @works.each do |work|
+        work.save_screenshot(directory)
       end
     end
 
