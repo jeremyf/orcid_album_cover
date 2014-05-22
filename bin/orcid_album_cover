@@ -179,11 +179,14 @@ module Orcid
       files = Dir["#{File.join(directory, 'cropped-*.png')}"]
       output_filename = "#{directory}.png"
       final_filename = "#{File.dirname(directory)}/final-#{File.basename(directory)}.png"
-      `cd #{@directory} && montage #{files.join(' ')} -geometry 300x300+2+2 #{output_filename}`
-      width = `identify -format %w #{output_filename}`.strip
-      height = `identify -format %h #{output_filename}`.strip
-      `convert -background '#0008' -fill white -gravity center -size #{width}x#{(height.to_i * 0.2).to_i} caption:"#{person_name} #{orcid_profile_id}" #{output_filename} +swap -gravity north -composite #{final_filename}`
-      `open #{final_filename}`
+      final_gif = "#{File.dirname(directory)}/final-#{File.basename(directory)}.gif"
+      `cd #{@directory} && convert #{files.join(' ')} -delay 1000 -loop 0 #{final_gif}`
+      `open #{final_gif}`
+      # `cd #{@directory} && montage #{files.join(' ')} -geometry 300x300+2+2 #{output_filename}`
+      # width = `identify -format %w #{output_filename}`.strip
+      # height = `identify -format %h #{output_filename}`.strip
+      # `convert -background '#0008' -fill white -gravity center -size #{width}x#{(height.to_i * 0.2).to_i} caption:"#{person_name} #{orcid_profile_id}" #{output_filename} +swap -gravity north -composite #{final_filename}`
+      # `open #{final_filename}`
     end
 
     def directory
