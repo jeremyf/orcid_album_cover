@@ -12,6 +12,14 @@ Generate an album cover for your favorite [ORCiD](https://orcid.org).
 
     $ orcid_album_cover <an_orcid>
 
+```console
+$ orcid_album_cover
+    Include a valid ORCiD:
+    $ orcid_album_cover DDDD-DDDD-DDDD-DDDD
+
+      If you don't have one, consider using 0000-0002-9952-7800
+```
+
 ### Non-Ruby Dependencies
 
 Install [ImageMagick](http://imagemagick.org/).
