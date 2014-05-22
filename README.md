@@ -1,6 +1,6 @@
 # Orcid Album Cover
 
-Generate an album cover for your favorite [ORCiD](https://orcid.org).
+Via the command line, generate an album cover for your favorite [ORCiD](https://orcid.org).
 
 Don't just talk about your life's work, *show it*!
 
