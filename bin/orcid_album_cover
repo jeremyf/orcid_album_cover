@@ -21,6 +21,7 @@ module Orcid
       FileUtils.mkdir_p(directory)
       find_person_name
       find_dois
+      guard_for_no_dois
       find_locations_from_dois
       screenscrap_locations
       generate_final_file
@@ -87,6 +88,13 @@ module Orcid
       @dois
     end
 
+    def guard_for_no_dois
+      if @dois.empty?
+        STDERR.puts "No public DOIs found for ORCID: #{orcid_profile_id}."
+        exit(-1)
+      end
+    end
+
     def find_locations_from_dois
       @locations = []
       @dois.each_with_object(@locations) do |doi, mem|
@@ -112,12 +120,13 @@ module Orcid
 end
 
 if ARGV[0].to_s =~ /^\d{4}-\d{4}-\d{4}-\d{4}$/
-  # orcid_profile_id = '0000-0002-9952-7800'
   orcid_profile_id = ARGV[0]
-  # Thank you Erik Lease Morgan for having lots of DOIs
   album_cover = Orcid::AlbumCover.new(orcid_profile_id)
   album_cover.call
 else
-  STDERR.puts "Include a valid ORCiD:\n$ #{File.basename(__FILE__)} DDDD-DDDD-DDDD-DDDD"
+  # Thank you Erik Lease Morgan for having lots of DOIs
+  STDERR.puts "Include a valid ORCiD:"
+  STDERR.puts "$ #{File.basename(__FILE__)} DDDD-DDDD-DDDD-DDDD"
+  STDERR.puts "\n\tIf you don't have one, consider using 0000-0002-9952-7800"
   exit!(-1)
 end
