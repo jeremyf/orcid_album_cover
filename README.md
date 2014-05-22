@@ -15,11 +15,17 @@ Don't just talk about your life's work, *show it*!
     $ orcid_album_cover <an_orcid>
 
 ```console
-$ orcid_album_cover
-    Include a valid ORCiD:
-    $ orcid_album_cover DDDD-DDDD-DDDD-DDDD
+$ orcid_album_cover -h
+    Usage: orcid_album_cover DDDD-DDDD-DDDD-DDDD [options]
+            --format [FORMAT]            With format: html, png
+```
 
-      If you don't have one, consider using 0000-0002-9952-7800
+### Examples
+
+Generate the HTML version and open the output file.
+
+```console
+$ orcid_album_cover 0000-0002-9952-7800 -f html > other_file.html && open other_file.html
 ```
 
 ### Non-Ruby Dependencies

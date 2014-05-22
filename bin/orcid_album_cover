@@ -14,7 +14,7 @@ module Orcid
     def initialize(orcid_profile_id, options = {})
       @orcid_profile_id = orcid_profile_id
       @host = options.fetch(:host) { 'http://pub.orcid.org/' }
-      @format = options.fetch(:format) { :html }
+      @format = options.fetch(:format) { 'png' }.to_s
     end
 
     def call
@@ -26,7 +26,7 @@ module Orcid
       find_locations_from_dois
       screenscrap_locations
       generate_cropped_files
-      if @format == :html
+      if @format.to_s == 'html'
         generate_html_carosel
       else
         generate_final_file
@@ -156,15 +156,24 @@ module Orcid
   end
 end
 
-puts ARGV.inspect
-# if ARGV[0].to_s =~ /^\d{4}-\d{4}-\d{4}-\d{4}$/
-#   orcid_profile_id = ARGV[0]
-#   album_cover = Orcid::AlbumCover.new(orcid_profile_id)
-#   album_cover.call
-# else
-#   # Thank you Erik Lease Morgan for having lots of DOIs
-#   STDERR.puts "Include a valid ORCiD:"
-#   STDERR.puts "$ #{File.basename(__FILE__)} DDDD-DDDD-DDDD-DDDD"
-#   STDERR.puts "\n\tIf you don't have one, consider using 0000-0002-9952-7800"
-#   exit!(-1)
-# end
+options = {}
+require 'optparse'
+FORMATS = ['html', 'png']
+OptionParser.new do |opts|
+  opts.banner = "Usage: #{File.basename(__FILE__)} DDDD-DDDD-DDDD-DDDD [options]"
+  opts.on("--format [FORMAT]", FORMATS, "With format: #{FORMATS.join(', ')}") do |f|
+    options[:format] = f
+  end
+end.parse!
+
+if ARGV[0].to_s =~ /^\d{4}-\d{4}-\d{4}-\d{4}$/
+  orcid_profile_id = ARGV[0]
+  album_cover = Orcid::AlbumCover.new(orcid_profile_id, options)
+  album_cover.call
+else
+  # Thank you Erik Lease Morgan for having lots of DOIs
+  STDERR.puts "Include a valid ORCiD:"
+  STDERR.puts "$ #{File.basename(__FILE__)} DDDD-DDDD-DDDD-DDDD"
+  STDERR.puts "\n\tIf you don't have one, consider using 0000-0002-9952-7800"
+  exit!(-1)
+end
