@@ -45,6 +45,8 @@ module Orcid
       template << %(.thumbnail h3 { font-size: 1em; })
       template << %(</style>)
       template << "<body>"
+      template << "<h2>#{person_name}</h2>"
+      template << "<h3><a href='https://orcid.org/#{orcid_profile_id}'>#{orcid_profile_id}<h3>"
       template << %(<ul class="thumbnails">)
       @locations.each_with_index do |(doi, location), index|
         filename = File.join(directory, "cropped-#{location.hash}.png")
