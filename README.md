@@ -49,7 +49,7 @@ On OS X, you can use [Homebrew](http://http://brew.sh//): `$ brew install imagem
 
 ## Contributing
 
-1. Fork it ( http://github.com/<my-github-username>/orcid_spray_bottle/fork )
+1. Fork it ( http://github.com/jeremyf/orcid_album_cover/fork )
 2. Create your feature branch (`git checkout -b my-new-feature`)
 3. Commit your changes (`git commit -am 'Add some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)
