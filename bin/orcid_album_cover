@@ -14,6 +14,7 @@ module Orcid
     def initialize(orcid_profile_id, options = {})
       @orcid_profile_id = orcid_profile_id
       @host = options.fetch(:host) { 'http://pub.orcid.org/' }
+      @format = options.fetch(:format) { :html }
     end
 
     def call
@@ -24,16 +25,65 @@ module Orcid
       guard_for_no_dois
       find_locations_from_dois
       screenscrap_locations
-      generate_final_file
+      generate_cropped_files
+      if @format == :html
+        generate_html_carosel
+      else
+        generate_final_file
+      end
     end
 
     private
 
-    def generate_final_file
+    def generate_html_carosel
+      bootstrap_directory = File.expand_path('../../bootstrap', __FILE__)
+      template = []
+      template << "<html>"
+      template << %(<link href="file://#{File.join(bootstrap_directory, '/css/bootstrap.min.css')}" rel="stylesheet">)
+      template << %(<style>)
+      template << %(.item img { height: 400px; })
+      template << %(</style>)
+      template << "<body>"
+      template << %(<div id="this-carousel-id" class="carousel slide"><!-- class of slide for animation -->)
+      template << %(<ol class="carousel-indicators">)
+      @locations.each_with_index do |(doi, location), index|
+        template << %(<li data-target="#this-carousel-id" data-slide-to="#{index}" class="#{index == 0 ? 'active' : ''}"></li>)
+      end
+      template << "</ol>"
+      template << %(  <div class="carousel-inner">)
+      @locations.each_with_index do |(doi, location), index|
+        template << %(    <div class="item#{ index == 0 ? ' active' : ''}">)
+        filename = File.join(directory, "cropped-#{location.hash}.png")
+        template << %(      <img src="file://#{filename}" alt="#{doi}"/>)
+        template << %(      <div class="carousel-caption">)
+        template << %(        <p><a href="http://dx.doi.org/#{doi}">#{doi}</a></p>)
+        template << %(      </div>)
+        template << %(    </div>)
+      end
+      template << %(  </div><!-- /.carousel-inner -->)
+      template << %(    <a class="carousel-control left" href="#this-carousel-id" data-slide="prev">&lsaquo;</a>)
+      template << %(    <a class="carousel-control right" href="#this-carousel-id" data-slide="next">&rsaquo;</a>)
+      template << %(</div><!-- /.carousel -->)
+      template << %{<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>}
+      template << %{<script src="file://#{File.join(bootstrap_directory, '/js/bootstrap.min.js')}"></script>}
+      template << %{<script>}
+      template << "$(document).ready(function(){"
+      template << "$('.carousel').carousel({interval: 2000});"
+      template << "});"
+      template << "</script>"
+      template << "</body>"
+      template << "</html>"
+      puts template.join("\n")
+    end
+
+    def generate_cropped_files
       Dir["#{File.join(directory, '*.png')}"].each do |filename|
         cropped_filename = File.join(directory, "cropped-#{File.basename(filename)}")
         `convert #{filename}  -thumbnail 300x300^ -gravity north -extent 300x300  #{cropped_filename}`
       end
+    end
+
+    def generate_final_file
       files = Dir["#{File.join(directory, 'cropped-*.png')}"]
       output_filename = "#{directory}.png"
       final_filename = "#{File.dirname(directory)}/final-#{File.basename(directory)}.png"
@@ -99,7 +149,7 @@ module Orcid
       @locations = []
       @dois.each_with_object(@locations) do |doi, mem|
         response = RestClient.get("http://dx.doi.org/#{doi}", accept: :html) { |resp, request, result| resp }
-        @locations << response.headers.fetch(:location)
+        @locations << [doi, response.headers.fetch(:location)]
       end
       @locations
     end
@@ -107,7 +157,7 @@ module Orcid
     def screenscrap_locations
       Capybara.current_driver = :webkit
       Capybara.run_server = false
-      @locations.each do |location|
+      @locations.each do |doi, location|
         uri = URI.parse(location)
         Capybara.app_host = "#{uri.scheme}://#{uri.host}"
         visit(uri.path)
