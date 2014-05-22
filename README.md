@@ -1,5 +1,9 @@
 # Orcid Album Cover
 
+[![Version](https://badge.fury.io/rb/orcid_album_cover.png)](http://badge.fury.io/rb/orcid_album_cover)
+[![APACHE 2 License](http://img.shields.io/badge/APACHE2-license-blue.svg)](./LICENSE)
+[![DOI 10.5281/zenodo.10048](http://img.shields.io/badge/DOI-10.5281/zenodo.10048-blue.svg)](https://zenodo.org/record/10048#.U34ThkJdVTY)
+
 Via the command line, generate an album cover for your favorite [ORCiD](https://orcid.org).
 
 Don't just talk about your life's work, *show it*!
@@ -8,9 +12,13 @@ Don't just talk about your life's work, *show it*!
 
 [![Example Image of Album Cover with much Rock and Roll](./images/example.png)](./images/example.png)
 
+Generated via: `$ orcid_album_cover 0000-0002-9952-7800`
+
 ## HTML Version
 
 [![Example Album Cover with much Rock and Roll and more Links](./images/html-example.png)](./images/html-example.png)
+
+Generated via: `$ orcid_album_cover 0000-0002-9952-7800 -f html > other_file.html && open other_file.html`
 
 ## Installation
 
@@ -46,3 +54,7 @@ On OS X, you can use [Homebrew](http://http://brew.sh//): `$ brew install imagem
 3. Commit your changes (`git commit -am 'Add some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)
 5. Create new Pull Request
+
+## Versioning
+
+**Orcid Album Cover** uses [Semantic Versioning 2.0.0](http://semver.org/)
