@@ -1,6 +1,8 @@
-# OrcidAlbumCover
+# Orcid Album Cover
 
 Generate an album cover for your favorite [ORCiD](https://orcid.org).
+
+Don't just talk about your life's work, *show it*!
 
 [![Example Image of Album Cover with much Rock and Roll](./images/example.png)](./images/example.png)
 
