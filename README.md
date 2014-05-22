@@ -4,7 +4,13 @@ Via the command line, generate an album cover for your favorite [ORCiD](https://
 
 Don't just talk about your life's work, *show it*!
 
+## PNG Version
+
 [![Example Image of Album Cover with much Rock and Roll](./images/example.png)](./images/example.png)
+
+## HTML Version
+
+[![Example Album Cover with much Rock and Roll and more Links](./images/html-example.png)](./images/html-example.png)
 
 ## Installation
 
