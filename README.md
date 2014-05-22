@@ -2,6 +2,8 @@
 
 Generate an album cover for your favorite [ORCiD](https://orcid.org).
 
+[![Example Image of Album Cover with much Rock and Roll](./images/example.png)](./images/example.png)
+
 ## Installation
 
     $ gem install orcid_album_cover
