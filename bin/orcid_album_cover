@@ -42,35 +42,22 @@ module Orcid
       template << %(<link href="file://#{File.join(bootstrap_directory, '/css/bootstrap.min.css')}" rel="stylesheet">)
       template << %(<style>)
       template << %(.item img { height: 400px; })
+      template << %(.thumbnail h3 { font-size: 1em; })
       template << %(</style>)
       template << "<body>"
-      template << %(<div id="this-carousel-id" class="carousel slide"><!-- class of slide for animation -->)
-      template << %(<ol class="carousel-indicators">)
+      template << %(<ul class="thumbnails">)
       @locations.each_with_index do |(doi, location), index|
-        template << %(<li data-target="#this-carousel-id" data-slide-to="#{index}" class="#{index == 0 ? 'active' : ''}"></li>)
-      end
-      template << "</ol>"
-      template << %(  <div class="carousel-inner">)
-      @locations.each_with_index do |(doi, location), index|
-        template << %(    <div class="item#{ index == 0 ? ' active' : ''}">)
         filename = File.join(directory, "cropped-#{location.hash}.png")
-        template << %(      <img src="file://#{filename}" alt="#{doi}"/>)
-        template << %(      <div class="carousel-caption">)
-        template << %(        <p><a href="http://dx.doi.org/#{doi}">#{doi}</a></p>)
-        template << %(      </div>)
-        template << %(    </div>)
+        template << %(<li class="span4">)
+        template << %(<div class="thumbnail">)
+        template << %(<a href="http://dx.doi.org/#{doi}">)
+        template << %(<img data-src="holder.js/300x300" style="width: 300px height: 300px;" alt="#{doi}" src="file://#{filename}">)
+        template << %(<h3>#{doi}</h3>)
+        template << %(</a>)
+        template << %(</div>)
+        template << %(</li>)
       end
-      template << %(  </div><!-- /.carousel-inner -->)
-      template << %(    <a class="carousel-control left" href="#this-carousel-id" data-slide="prev">&lsaquo;</a>)
-      template << %(    <a class="carousel-control right" href="#this-carousel-id" data-slide="next">&rsaquo;</a>)
-      template << %(</div><!-- /.carousel -->)
-      template << %{<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>}
-      template << %{<script src="file://#{File.join(bootstrap_directory, '/js/bootstrap.min.js')}"></script>}
-      template << %{<script>}
-      template << "$(document).ready(function(){"
-      template << "$('.carousel').carousel({interval: 2000});"
-      template << "});"
-      template << "</script>"
+      template << "</ul>"
       template << "</body>"
       template << "</html>"
       puts template.join("\n")
@@ -169,14 +156,15 @@ module Orcid
   end
 end
 
-if ARGV[0].to_s =~ /^\d{4}-\d{4}-\d{4}-\d{4}$/
-  orcid_profile_id = ARGV[0]
-  album_cover = Orcid::AlbumCover.new(orcid_profile_id)
-  album_cover.call
-else
-  # Thank you Erik Lease Morgan for having lots of DOIs
-  STDERR.puts "Include a valid ORCiD:"
-  STDERR.puts "$ #{File.basename(__FILE__)} DDDD-DDDD-DDDD-DDDD"
-  STDERR.puts "\n\tIf you don't have one, consider using 0000-0002-9952-7800"
-  exit!(-1)
-end
+puts ARGV.inspect
+# if ARGV[0].to_s =~ /^\d{4}-\d{4}-\d{4}-\d{4}$/
+#   orcid_profile_id = ARGV[0]
+#   album_cover = Orcid::AlbumCover.new(orcid_profile_id)
+#   album_cover.call
+# else
+#   # Thank you Erik Lease Morgan for having lots of DOIs
+#   STDERR.puts "Include a valid ORCiD:"
+#   STDERR.puts "$ #{File.basename(__FILE__)} DDDD-DDDD-DDDD-DDDD"
+#   STDERR.puts "\n\tIf you don't have one, consider using 0000-0002-9952-7800"
+#   exit!(-1)
+# end
