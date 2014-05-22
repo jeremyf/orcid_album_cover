@@ -1,0 +1,123 @@
+#!/usr/bin/env ruby
+require 'rest_client'
+require 'nokogiri'
+require 'capybara'
+require 'capybara/rspec'
+require 'uri'
+require 'capybara-webkit'
+require 'fileutils'
+
+module Orcid
+  class AlbumCover
+    include Capybara::DSL
+    attr_reader :orcid_profile_id, :host, :person_name
+    def initialize(orcid_profile_id, options = {})
+      @orcid_profile_id = orcid_profile_id
+      @host = options.fetch(:host) { 'http://pub.orcid.org/' }
+    end
+
+    def call
+      FileUtils.rm_rf(directory)
+      FileUtils.mkdir_p(directory)
+      find_person_name
+      find_dois
+      find_locations_from_dois
+      screenscrap_locations
+      generate_final_file
+    end
+
+    private
+
+    def generate_final_file
+      Dir["#{File.join(directory, '*.png')}"].each do |filename|
+        cropped_filename = File.join(directory, "cropped-#{File.basename(filename)}")
+        `convert #{filename}  -thumbnail 300x300^ -gravity north -extent 300x300  #{cropped_filename}`
+      end
+      files = Dir["#{File.join(directory, 'cropped-*.png')}"]
+      output_filename = "#{directory}.png"
+      final_filename = "#{File.dirname(directory)}/final-#{File.basename(directory)}.png"
+      `cd #{@directory} && montage #{files.join(' ')} -geometry 300x300+2+2 #{output_filename}`
+      width = `identify -format %w #{output_filename}`.strip
+      height = `identify -format %h #{output_filename}`.strip
+      `convert -background '#0008' -fill white -gravity center -size #{width}x#{(height.to_i * 0.2).to_i} caption:"#{person_name} #{orcid_profile_id}" #{output_filename} +swap -gravity north -composite #{final_filename}`
+      `open #{final_filename}`
+    end
+
+    def directory
+      @directory ||= File.expand_path("../../tmp/#{orcid_profile_id}", __FILE__)
+    end
+
+    def profile_works_uri
+      File.join(host, "v1.1/#{orcid_profile_id}/orcid-works")
+    end
+
+    def profile_uri
+      File.join(host, "v1.1/#{orcid_profile_id}")
+    end
+
+    def find_person_name
+      response = RestClient.get(profile_uri, accept: :xml)
+      document = Nokogiri::XML(response)
+      personal_details = document.css('personal-details')
+      @person_name = ''
+      if credit_name = personal_details.css('credit-name')
+        @person_name = credit_name.text
+      else
+        if given_name = personal_details.css('given-names')
+          @person_name += " #{given_name.text}"
+        end
+        if family_name = personal_details.css('family-name')
+          @person_name += " #{family_name.text}"
+        end
+        @person_name.strip
+      end
+    end
+
+    def find_dois
+      response = RestClient.get(profile_works_uri, accept: :xml)
+      document = Nokogiri::XML(response)
+      @dois = []
+      document.css('work-external-identifier').each_with_object(@dois) do |node, dois|
+        if node.css('work-external-identifier-type').text =~ /^doi$/i
+          dois << node.css('work-external-identifier-id').text
+        end
+        dois
+      end
+      @dois.uniq!
+      @dois
+    end
+
+    def find_locations_from_dois
+      @locations = []
+      @dois.each_with_object(@locations) do |doi, mem|
+        response = RestClient.get("http://dx.doi.org/#{doi}", accept: :html) { |resp, request, result| resp }
+        @locations << response.headers.fetch(:location)
+      end
+      @locations
+    end
+
+    def screenscrap_locations
+      Capybara.current_driver = :webkit
+      Capybara.run_server = false
+      @locations.each do |location|
+        uri = URI.parse(location)
+        Capybara.app_host = "#{uri.scheme}://#{uri.host}"
+        visit(uri.path)
+        filename = "#{location.hash}.png"
+        page.save_screenshot(File.join(directory, filename))
+      end
+    end
+
+  end
+end
+
+if ARGV[0].to_s =~ /^\d{4}-\d{4}-\d{4}-\d{4}$/
+  # orcid_profile_id = '0000-0002-9952-7800'
+  orcid_profile_id = ARGV[0]
+  # Thank you Erik Lease Morgan for having lots of DOIs
+  album_cover = Orcid::AlbumCover.new(orcid_profile_id)
+  album_cover.call
+else
+  STDERR.puts "Include a valid ORCiD:\n$ #{File.basename(__FILE__)} DDDD-DDDD-DDDD-DDDD"
+  exit!(-1)
+end
